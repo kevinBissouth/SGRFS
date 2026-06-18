@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+
+# Node.js
+node_modules/
+build/
+
+# Local environment variables
+.env
+*.env.local
+
+# Logs
+*.log
+*.tmp
+
+# Uploads (documents, images, etc.)
+uploads/
+
+# Misc caches
+.cache/
+*.env
