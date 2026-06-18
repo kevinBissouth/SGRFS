@@ -510,8 +510,8 @@ function Infos() {
 
             <div className="flex overflow-x-hidden">
                 {/* DESKTOP SIDEBAR */}
-                <aside className="hidden md:flex flex-col w-64 bg-gradient-to-b from-blue-900 to-indigo-900 text-white fixed h-screen overflow-y-auto z-20">
-                    <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10 shrink-0 mt-14">
+                <aside className="hidden md:flex flex-col w-64 bg-gradient-to-b from-blue-900 to-indigo-900 text-white fixed h-screen z-40 shrink-0">
+                    <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10 shrink-0">
                         <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-full bg-white/10 p-0.5 shadow-lg" />
                         <div>
                             <p className="text-sm font-bold">Université d'Ebolowa</p>
@@ -544,11 +544,11 @@ function Infos() {
                 {drawerOpen && (
                     <div className="md:hidden fixed inset-0 z-50 flex">
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-                        <aside className="relative flex flex-col w-72 bg-gradient-to-b from-blue-900 to-indigo-900 text-white h-full overflow-y-auto shadow-2xl">
+                        <aside className="relative flex flex-col w-72 max-w-[85vw] bg-gradient-to-b from-blue-900 to-indigo-900 text-white h-full shadow-2xl">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
                                 <div className="flex items-center gap-2.5">
                                     <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-full bg-white/10 p-0.5" />
-                                    <p className="text-sm font-semibold">Université d'Ebolowa</p>
+                                    <p className="text-sm font-bold">Université d'Ebolowa</p>
                                 </div>
                                 <button onClick={() => setDrawerOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
                                     <X size={20} />
