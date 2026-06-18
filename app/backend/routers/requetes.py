@@ -2,6 +2,7 @@ from fastapi import HTTPException, APIRouter
 import asyncio
 from backend.modeles.modeles import Requetes
 from backend.routers import utils
+from backend.database.database import get_db_connection
 
 
 router = APIRouter(prefix="/requete", tags=["requete"])
@@ -20,17 +21,27 @@ def _format_requete_row(row):
 
 
 def ajouter_requete(requete: Requetes):
-    result = utils.query_one(
-        "INSERT INTO requetes(id_etudiant, date_requete, id_type_requete, id_ues, statut) VALUES (%s, %s, %s, %s, %s) RETURNING id_requete",
-        (
-            requete.id_etudiant,
-            requete.date_requete.isoformat() if hasattr(requete.date_requete, "isoformat") else requete.date_requete,
-            requete.id_type_requete,
-            requete.id_ues,
-            requete.statut,
-        ),
-    )
-    return result[0] if result else None
+    conn, cursor = get_db_connection()
+    try:
+        cursor.execute(
+            "INSERT INTO requetes(id_etudiant, date_requete, id_type_requete, id_ues, statut) VALUES (%s, %s, %s, %s, %s) RETURNING id_requete",
+            (
+                requete.id_etudiant,
+                requete.date_requete.isoformat() if hasattr(requete.date_requete, "isoformat") else requete.date_requete,
+                requete.id_type_requete,
+                requete.id_ues,
+                requete.statut,
+            ),
+        )
+        result = cursor.fetchone()
+        conn.commit()
+        return result[0] if result else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @router.post("/add_requete/")

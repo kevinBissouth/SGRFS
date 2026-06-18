@@ -102,7 +102,6 @@ function FileUploader({ onFileUpload, onFileRemove, uploadedFiles, requiredDocs,
   };
   const getFileIcon = (type) => type?.startsWith("image/") ? <ImageIcon size={14} /> : <File size={14} />;
   const t = { fr: { requiredDocs: "Documents requis", uploadedDocs: "Documents téléchargés" }, en: { requiredDocs: "Required documents", uploadedDocs: "Uploaded documents" } }[lang];
-  // 
   return (
     <div className="space-y-3">
       {requiredDocs.length > 0 && (
@@ -445,6 +444,7 @@ function RequestTracking({ request, lang, onClose }) {
   const [loading, setLoading] = useState(true);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [hoveredStep, setHoveredStep] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
   const isMobile = window.innerWidth < 768;
 
   useEffect(() => {
@@ -478,7 +478,7 @@ function RequestTracking({ request, lang, onClose }) {
   }, [request.id]);
 
   const handleOpenDocument = (doc) => {
-    window.open(`${API_BASE_URL}/${doc.chemin}`, "_blank");
+    setSelectedDocument(doc);
   };
 
   const t = {
@@ -489,6 +489,7 @@ function RequestTracking({ request, lang, onClose }) {
       openDoc: "Ouvrir", loading: "Chargement...", error: "Impossible de charger",
       timeline: "Chronologie", completed: "Terminé", pending: "En attente",
       rejected: "Rejeté", current: "En cours", days: "jours", reason: "Motif du rejet",
+      close: "Fermer", download: "Télécharger", previewUnavailable: "Aperçu indisponible pour ce type de fichier",
     },
     en: {
       title: "Request Tracking", type: "Type", date: "Date", status: "Status",
@@ -497,6 +498,7 @@ function RequestTracking({ request, lang, onClose }) {
       openDoc: "Open", loading: "Loading...", error: "Unable to load",
       timeline: "Timeline", completed: "Completed", pending: "Pending",
       rejected: "Rejected", current: "In progress", days: "days", reason: "Rejection reason",
+      close: "Close", download: "Download", previewUnavailable: "Preview unavailable for this file type",
     },
   }[lang];
 
@@ -511,6 +513,36 @@ function RequestTracking({ request, lang, onClose }) {
   const getFileIcon = (type) => {
     if (type?.startsWith("image/")) return <ImageIcon size={isMobile ? 14 : 16} />;
     return <File size={isMobile ? 14 : 16} />;
+  };
+
+  const getDocumentUrl = (doc) => `${API_BASE_URL}/${doc.chemin}`;
+
+  const renderDocumentPreview = () => {
+    if (!selectedDocument) return null;
+    const url = getDocumentUrl(selectedDocument);
+    const type = selectedDocument.type_fichier || "";
+    if (type.startsWith("image/")) {
+      return <img src={url} alt={selectedDocument.nom_original} className="max-w-full max-h-full object-contain mx-auto" />;
+    }
+    if (type === "application/pdf") {
+      const pdfUrl = `${url}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
+      return (
+        <object data={pdfUrl} type="application/pdf" className="w-full h-full bg-white">
+          <embed src={pdfUrl} type="application/pdf" className="w-full h-full bg-white" />
+          <div className="flex flex-col items-center justify-center h-full text-center gap-3 p-6 bg-white">
+            <File size={48} className="text-gray-300" />
+            <p className="text-sm text-gray-500">{t.previewUnavailable}</p>
+            <a href={url} download className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold">{t.download}</a>
+          </div>
+        </object>
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+        <File size={48} className="text-gray-300" />
+        <p className="text-sm text-gray-500">{t.previewUnavailable}</p>
+      </div>
+    );
   };
 
   const isRejected = details?.statut_requete &&
@@ -910,6 +942,37 @@ function RequestTracking({ request, lang, onClose }) {
           overflow: hidden;
         }
       `}</style>
+
+      {selectedDocument && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-0 md:p-6">
+          <div className="bg-white md:rounded-2xl shadow-2xl w-full max-w-5xl h-[100dvh] md:h-[88vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  {getFileIcon(selectedDocument.type_fichier)}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{selectedDocument.nom_original}</p>
+                  <p className="text-[10px] text-gray-400">{selectedDocument.type_fichier}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={getDocumentUrl(selectedDocument)} download className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={t.download}>
+                  <Download size={16} />
+                </a>
+                <button onClick={() => setSelectedDocument(null)} className="p-2 rounded-lg hover:bg-gray-100 transition-colors" title={t.close}>
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 bg-gray-100 overflow-auto p-2 md:p-4">
+              <div className="w-full h-full flex items-center justify-center">
+                {renderDocumentPreview()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1065,24 +1128,27 @@ function RequestDashboard() {
     formDataUpload.append("id_exigence", parseInt(idExigence));
     formDataUpload.append("id_requete", parseInt(idRequete));
 
-    console.log("📦 Upload:", file.name, file.type, file.size);
-
     const res = await fetch(`${API_BASE_URL}/documents/upload`, {
       method: "POST",
       body: formDataUpload,
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("❌ Erreur upload:", err);
+      throw new Error(data.detail || `Impossible d'envoyer le document ${file.name}`);
     }
 
-    return res.ok;
+    if (!data.id_document) {
+      throw new Error(`Le document ${file.name} n'a pas été enregistré`);
+    }
+
+    return data;
   };
 
   const handleSubmitRequest = async (formData) => {
     if (!student?.id_etudiant) return;
     setSubmitting(true);
+    let idRequete = null;
     try {
       const payload = {
         id_etudiant: student.id_etudiant,
@@ -1097,17 +1163,36 @@ function RequestDashboard() {
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Erreur"); }
 
       const created = await res.json();
-      const idRequete = created.id_requete;
+      idRequete = created.id_requete;
+
+      if (!idRequete) {
+        throw new Error("La requête n'a pas été enregistrée");
+      }
 
       if (formData.uploadedDocuments?.length > 0 && idRequete) {
         for (const fileData of formData.uploadedDocuments) {
-          console.log("📎 Fichier:", fileData.name, fileData.type, fileData.size, fileData.requiredDoc);
           const idExigence = exigencesMap[fileData.requiredDoc];
           if (idExigence && fileData.name && fileData.size) {
             await uploadDocument(fileData, idExigence, idRequete);
           } else {
-            console.error("❌ Fichier invalide ou exigence inconnue:", fileData);
+            throw new Error(`Impossible d'associer le document ${fileData.name || ""} à une exigence`);
           }
+        }
+      }
+
+      const savedReqRes = await fetch(`${API_BASE_URL}/requete/get_requete_by_id/${idRequete}`);
+      if (!savedReqRes.ok) {
+        throw new Error("La requête n'a pas été retrouvée après l'enregistrement");
+      }
+
+      if (formData.uploadedDocuments?.length > 0) {
+        const savedDocsRes = await fetch(`${API_BASE_URL}/documents/by_requete/${idRequete}`);
+        if (!savedDocsRes.ok) {
+          throw new Error("Impossible de vérifier les documents envoyés");
+        }
+        const savedDocs = await savedDocsRes.json();
+        if (!Array.isArray(savedDocs) || savedDocs.length < formData.uploadedDocuments.length) {
+          throw new Error("Tous les documents n'ont pas été enregistrés");
         }
       }
 
@@ -1126,9 +1211,17 @@ function RequestDashboard() {
           return normalizeRequete(req, docsCount);
         }));
         setRequests(requestsWithDocs);
+      } else {
+        const saved = await savedReqRes.json();
+        setRequests((prev) => [normalizeRequete(saved, formData.uploadedDocuments?.length || 0), ...prev]);
       }
       setShowForm(false); setShowNotification(true); setTimeout(() => setShowNotification(false), 3000);
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      if (idRequete) {
+        await fetch(`${API_BASE_URL}/requete/delete_requete/${idRequete}`, { method: "DELETE" }).catch(() => {});
+      }
+      alert(err.message || "Impossible d'envoyer la requête");
+    }
     finally { setSubmitting(false); }
   };
 
