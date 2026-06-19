@@ -15,6 +15,7 @@ from backend.routers import (
     documents,
     documents_reponse_requete, 
     minetteIA,
+    contact,
 )
 
 from fastapi.staticfiles import StaticFiles
@@ -62,3 +63,4 @@ app.include_router(requetes.router)
 app.include_router(documents.router)
 app.include_router(documents_reponse_requete.router)
 app.include_router(minetteIA.router,prefix="/ai")
+app.include_router(contact.router)
