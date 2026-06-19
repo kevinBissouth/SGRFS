@@ -1,15 +1,46 @@
 {
-  "short_name": "SGR",
-  "name": "Systeme de gestion de requetes",
+  "short_name": "SGRFS",
+  "name": "Systeme de gestion des requetes",
+  "description": "Systeme de gestion et de suivi des requetes etudiantes.",
   "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "16x16 24x24 32x32 64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "maskable-icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "maskable-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": ".",
+  "scope": ".",
+  "id": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#0f766e",
+  "background_color": "#f8fafc",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "fr-CM",
+  "dir": "ltr"
 }

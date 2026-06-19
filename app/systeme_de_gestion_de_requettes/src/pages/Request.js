@@ -279,24 +279,26 @@ function RequestStep2({ formData, selectedType, lang, onSubmit, onBack, student,
     if (lang === "fr") {
       const studentInfo = `${student.nom} ${student.prenom}\n${student.matricule}\n${filiereLabel}\n${niveauLabel}\n${student.email || ""}\n${student.telephone || ""}`;
       const dateLine = `Ebolowa, le ${date}`;
-      let objet = `Objet : ${selectedType.titre.toLowerCase()}`;
-      let corps = `Madame le Doyen,\n\n    Je suis étudiant en ${filiereLabel} ${niveauLabel} à la Faculté des Sciences de l'Université d'Ebolowa. Je me permets de vous écrire cette lettre pour solliciter votre bienveillance afin d'obtenir `;
-      if (selectedType && needsUE(selectedType.titre) && selectedUE) corps += `une révision de mes notes pour l'Unité d'Enseignement "${selectedUE.intitule}".\n\n    Je pense qu'une erreur a pu se produire lors de l'évaluation de cette unité.\n\n    Je vous prie de bien vouloir procéder à une vérification approfondie de ma copie d'examen.\n\n`;
-      else corps += `traiter ma demande concernant "${selectedType.titre}".\n\n    Cette démarche est d'une importance capitale pour la poursuite normale de mon parcours académique.\n\n`;
-      corps += `    Dans l'attente d'une suite favorable, veuillez agréer, Madame le Doyen, l'expression de ma profonde gratitude.\n\n`;
-      let piecesJointes = `Pièces jointes :\n`;
-      if (formData.requiredDocuments?.length > 0) formData.requiredDocuments.forEach((doc) => { const u = formData.uploadedDocuments?.some((f) => f.requiredDoc === doc); piecesJointes += `  - ${doc}${u ? " (✓ déposé)" : ""}\n`; });
+      const requestTitle = selectedType.titre || "requête académique";
+      const ueLine = selectedUE ? ` Cette demande concerne l'Unité d'Enseignement "${selectedUE.intitule}"${selectedUE.code ? ` (${selectedUE.code})` : ""}.` : "";
+      const documentsCount = formData.requiredDocuments?.length || 0;
+      const documentsLine = documentsCount > 0 ? `Les pièces justificatives requises, au nombre de ${documentsCount}, sont jointes au présent dossier afin de faciliter son examen.` : "Aucune pièce justificative particulière n'étant exigée pour cette demande, je reste disponible pour fournir tout complément d'information nécessaire.";
+      const objet = `Objet : ${requestTitle.toLowerCase()}`;
+      const corps = `Madame le Doyen,\n\n    Je suis étudiant en ${filiereLabel} ${niveauLabel} à la Faculté des Sciences de l'Université d'Ebolowa. Je me permets de vous adresser la présente requête relative à "${requestTitle}".${ueLine}\n\n    Cette demande s'inscrit dans le cadre de mon parcours académique et nécessite l'appréciation de vos services compétents. ${documentsLine}\n\n    Je vous prie de bien vouloir étudier ma demande et de lui réserver la suite appropriée. Dans l'attente d'une réponse favorable, veuillez agréer, Madame le Doyen, l'expression de ma profonde gratitude.\n\n`;
+      let piecesJointes = `Pièces jointes (${documentsCount}) :\n`;
+      if (formData.requiredDocuments?.length > 0) formData.requiredDocuments.forEach((doc) => { const u = formData.uploadedDocuments?.some((f) => f.requiredDoc === doc); piecesJointes += `  - ${doc}${u ? " (déposé)" : ""}\n`; });
       else piecesJointes += `  - Aucune pièce jointe\n`;
       return { studentInfo, dateLine, destinataire: "A Madame le Doyen", objet, corps, piecesJointes, signature: `${student.nom} ${student.prenom}` };
     } else {
       const studentInfo = `${student.nom} ${student.prenom}\n${student.matricule}\n${filiereLabel}\n${niveauLabel}\n${student.email || ""}\n${student.telephone || ""}`;
       const dateLine = `Ebolowa, ${date}`;
-      let corps = `Dear Dean,\n\n    I am a student in ${filiereLabel} ${niveauLabel} at the Faculty of Sciences of the University of Ebolowa. I am writing to respectfully request `;
-      if (selectedType && needsUE(selectedType.titre) && selectedUE) corps += `a grade revision for "${selectedUE.intitule}".\n\n`;
-      else corps += `to process my request regarding "${selectedType.titre}".\n\n`;
-      corps += `    Thank you in advance for your favorable response.\n\n`;
-      let piecesJointes = `Attached documents :\n`;
-      if (formData.requiredDocuments?.length > 0) formData.requiredDocuments.forEach((doc) => { const u = formData.uploadedDocuments?.some((f) => f.requiredDoc === doc); piecesJointes += `  - ${doc}${u ? " (✓ uploaded)" : ""}\n`; });
+      const requestTitle = selectedType.titre || "academic request";
+      const ueLine = selectedUE ? ` This request concerns the Teaching Unit "${selectedUE.intitule}"${selectedUE.code ? ` (${selectedUE.code})` : ""}.` : "";
+      const documentsCount = formData.requiredDocuments?.length || 0;
+      const documentsLine = documentsCount > 0 ? `The required supporting document${documentsCount > 1 ? "s" : ""}, ${documentsCount} in total, ${documentsCount > 1 ? "are" : "is"} attached to this file to facilitate its examination.` : "As no specific supporting document is required for this request, I remain available to provide any additional information needed.";
+      const corps = `Dear Dean,\n\n    I am a student in ${filiereLabel} ${niveauLabel} at the Faculty of Sciences of the University of Ebolowa. I am respectfully submitting this request regarding "${requestTitle}".${ueLine}\n\n    This request is part of my academic process and requires review by the competent services. ${documentsLine}\n\n    I kindly ask you to review my request and grant it the appropriate follow-up. Thank you in advance for your favorable consideration.\n\n`;
+      let piecesJointes = `Attached documents (${documentsCount}) :\n`;
+      if (formData.requiredDocuments?.length > 0) formData.requiredDocuments.forEach((doc) => { const u = formData.uploadedDocuments?.some((f) => f.requiredDoc === doc); piecesJointes += `  - ${doc}${u ? " (uploaded)" : ""}\n`; });
       else piecesJointes += `  - No attached documents\n`;
       return { studentInfo, dateLine, destinataire: "To Madam the Dean", objet: `Subject: ${selectedType.titre.toLowerCase()}`, corps, piecesJointes, signature: `${student.nom} ${student.prenom}` };
     }

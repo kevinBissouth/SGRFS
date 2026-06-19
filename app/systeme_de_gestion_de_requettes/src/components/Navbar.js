@@ -29,13 +29,43 @@ function Navbar() {
   const { lang, toggleLang } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("top");
   const t = NAV_LABELS[lang];
 
   // Shadow on scroll
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const sectionIds = ["top", "about", "features", "process", "contact"];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    if (!sections.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+        if (visible?.target?.id) {
+          setActiveSection(visible.target.id);
+        }
+      },
+      {
+        rootMargin: "-72px 0px -55% 0px",
+        threshold: [0.18, 0.35, 0.6],
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
   }, []);
 
   // Lock body scroll when menu open
@@ -59,13 +89,13 @@ function Navbar() {
       {/* ── HEADER BAR ───────────────────────────────────────────────────── */}
       <header
         className={`
-          fixed top-0 left-0 right-0 z-50
+          sticky top-0 left-0 right-0 z-50
           bg-blue-900/95 backdrop-blur-md text-white
-          transition-shadow duration-300
-          ${scrolled ? "shadow-xl shadow-blue-950/40" : ""}
+          transition-all duration-300
+          ${scrolled ? "shadow-xl shadow-blue-950/40 border-b border-white/10" : "border-b border-white/0"}
         `}
       >
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
 
           {/* ── BRAND ──────────────────────────────────────────────────── */}
           <a href="#top" className="flex items-center gap-2.5 shrink-0" onClick={closeMenu}>
@@ -90,13 +120,29 @@ function Navbar() {
               <a
                 key={href}
                 href={href}
+                onClick={() => setActiveSection(href.slice(1))}
                 className="
-                  px-3 py-2 rounded-lg text-sm font-medium text-blue-100
-                  hover:text-white hover:bg-white/10
-                  transition-colors duration-150
+                  relative px-3 py-2 rounded-lg text-sm font-medium
+                  transition-all duration-200
                 "
+                aria-current={activeSection === href.slice(1) ? "page" : undefined}
               >
-                {label}
+                <span
+                  className={
+                    activeSection === href.slice(1)
+                      ? "text-white"
+                      : "text-blue-100 hover:text-white"
+                  }
+                >
+                  {label}
+                </span>
+                <span
+                  className={`
+                    absolute left-3 right-3 -bottom-0.5 h-0.5 rounded-full bg-cyan-300
+                    transition-all duration-200
+                    ${activeSection === href.slice(1) ? "opacity-100 scale-x-100" : "opacity-0 scale-x-50"}
+                  `}
+                />
               </a>
             ))}
           </nav>
@@ -208,13 +254,16 @@ function Navbar() {
               <a
                 key={href}
                 href={href}
-                onClick={closeMenu}
-                className="
+                onClick={() => {
+                  setActiveSection(href.slice(1));
+                  closeMenu();
+                }}
+                className={`
                   px-4 py-3.5 rounded-xl text-base font-medium
-                  text-blue-100 hover:text-white hover:bg-white/10
                   active:bg-white/20
                   transition-colors duration-150
-                "
+                  ${activeSection === href.slice(1) ? "text-white bg-white/10 border border-white/10" : "text-blue-100 hover:text-white hover:bg-white/10 border border-transparent"}
+                `}
               >
                 {label}
               </a>
@@ -254,9 +303,6 @@ function Navbar() {
           </div>
         </div>
       </div>
-
-      {/* Spacer so content doesn't hide behind fixed header */}
-      <div className="h-[56px]" />
     </>
   );
 }
