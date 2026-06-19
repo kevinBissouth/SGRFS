@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
     User, Mail, Lock, GraduationCap, CalendarDays,
     Eye, EyeOff, Home, ChevronLeft, ChevronRight, Phone,
+    ShieldCheck, RefreshCw, Globe,
 } from "lucide-react";
 import { useLanguage } from "../components/LanguageContext";
-import LanguageToggle from "../components/LanguageToggle";
 import API_BASE_URL from "../config";
 
 const TEXTS = {
@@ -21,7 +21,7 @@ const TEXTS = {
         prenomPlaceholder: "Entrez votre prénom",
         dateNaissance: "Date de naissance",
         matricule: "Matricule",
-        matriculePlaceholder: "Ex : 24ICT001",
+        matriculePlaceholder: "Ex : 24I0013FS",
         filiere: "Filière",
         filierePlaceholder: "Sélectionner une filière",
         niveau: "Niveau",
@@ -46,10 +46,24 @@ const TEXTS = {
         backHome: "Retour à l'accueil",
         errorEmpty: "Veuillez remplir tous les champs obligatoires.",
         errorAge: "L'âge doit être supérieur ou égal à 15 ans.",
+        errorName: "Ce champ doit contenir au moins une lettre et ne peut pas être uniquement composé de chiffres.",
         errorMatricule: "Le matricule doit respecter le format 24I0013FS.",
+        errorEmail: "Entrez une adresse email valide.",
         errorTelephone: "Entrez un numéro camerounais valide, ex : 690000000 ou +237690000000.",
+        errorPassword: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre.",
         errorRegister: "Erreur lors de l'inscription.",
-        successRegister: "Inscription réussie ! Redirection vers la connexion...",
+        successRegister: "Inscription vérifiée ! Redirection vers le tableau de bord...",
+        verifyTitle: "Vérification de sécurité",
+        verifySubtitle: "Entrez le code envoyé à votre email avant la création du compte.",
+        code: "Code email",
+        codePlaceholder: "Ex : 123456",
+        robotCheck: "Vérification anti-robot",
+        robotPlaceholder: "Votre réponse",
+        refreshCaptcha: "Nouveau challenge",
+        verifySubmit: "Vérifier et créer le compte",
+        verifying: "Vérification...",
+        codeSent: "Un code de vérification a été envoyé à votre adresse email.",
+        restart: "Modifier les informations",
     },
     en: {
         title: "Student Registration",
@@ -63,7 +77,7 @@ const TEXTS = {
         prenomPlaceholder: "Enter your first name",
         dateNaissance: "Date of Birth",
         matricule: "Student ID",
-        matriculePlaceholder: "Ex: 24ICT001",
+        matriculePlaceholder: "Ex: 24I0013FS",
         filiere: "Program",
         filierePlaceholder: "Select a program",
         niveau: "Level",
@@ -88,10 +102,24 @@ const TEXTS = {
         backHome: "Back to home",
         errorEmpty: "Please fill in all required fields.",
         errorAge: "Age must be greater than or equal to 15 years.",
+        errorName: "This field must contain at least one letter and cannot contain only digits.",
         errorMatricule: "The student ID must follow the format 24I0013FS.",
+        errorEmail: "Enter a valid email address.",
         errorTelephone: "Enter a valid Cameroonian phone number, ex: 690000000 or +237690000000.",
+        errorPassword: "Password must contain at least 8 characters, one uppercase letter, one lowercase letter and one number.",
         errorRegister: "Registration error.",
-        successRegister: "Registration successful! Redirecting to login...",
+        successRegister: "Registration verified! Redirecting to dashboard...",
+        verifyTitle: "Security verification",
+        verifySubtitle: "Enter the code sent to your email before the account is created.",
+        code: "Email code",
+        codePlaceholder: "Ex: 123456",
+        robotCheck: "Anti-robot verification",
+        robotPlaceholder: "Your answer",
+        refreshCaptcha: "New challenge",
+        verifySubmit: "Verify and create account",
+        verifying: "Verifying...",
+        codeSent: "A verification code has been sent to your email address.",
+        restart: "Edit information",
     },
 };
 
@@ -109,6 +137,12 @@ function Field({ label, icon, children }) {
 }
 
 const inputCls = "w-full py-2.5 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400";
+const errorCls = "text-[11px] font-medium text-red-600";
+
+function FieldError({ message }) {
+    if (!message) return null;
+    return <p className={errorCls}>{message}</p>;
+}
 
 function formatDateInput(date) {
     const year = date.getFullYear();
@@ -169,7 +203,7 @@ function StepDots({ current, total }) {
 // ─── Composant principal ──────────────────────────────────────────
 function Register() {
     const navigate = useNavigate();
-    const { lang } = useLanguage();
+    const { lang, toggleLang } = useLanguage();
     const t = TEXTS[lang];
 
     const [filieres, setFilieres] = useState([]);
@@ -191,8 +225,14 @@ function Register() {
     const [showPwd, setShowPwd] = useState(false);
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [verifying, setVerifying] = useState(false);
     const [error, setError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState({});
     const [success, setSuccess] = useState("");
+    const [verificationToken, setVerificationToken] = useState("");
+    const [verificationCode, setVerificationCode] = useState("");
+    const [captcha, setCaptcha] = useState({ token: "", question: "" });
+    const [captchaAnswer, setCaptchaAnswer] = useState("");
 
     const TOTAL_STEPS = 3;
 
@@ -209,8 +249,11 @@ function Register() {
         if (!dateNaissance) return false;
         return dateNaissance <= maxBirthDate;
     };
-    const matriculeRegex = /^\d{2}[A-Z]\d{4}FS$/i;
+    const nameRegex = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[\wÀ-ÖØ-öø-ÿ' -]{2,100}$/u;
+    const matriculeRegex = /^\d{2}[A-Z]{1,4}\d{4}FS$/i;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     const phoneRegex = /^6[2-9]\d{7}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     // ─── Chargement des filières ─────────────────────────────────
     useEffect(() => {
@@ -265,6 +308,7 @@ function Register() {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setError("");
+        setFieldErrors((prev) => ({ ...prev, [name]: "" }));
 
         if (name === "id_filiere") {
             setFormData((prev) => ({
@@ -292,46 +336,76 @@ function Register() {
             return;
         }
 
+        if (name === "matricule") {
+            setFormData((prev) => ({ ...prev, matricule: value.toUpperCase().replace(/\s/g, "").slice(0, 12) }));
+            return;
+        }
+
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const getStepError = (s) => {
+    const getStepErrors = (s) => {
+        const errors = {};
+
         if (s === 1) {
-            if (formData.nom.trim() === "" || formData.prenom.trim() === "" || formData.dateNaissance === "") {
-                return t.errorEmpty;
-            }
-            if (!isOldEnough(formData.dateNaissance)) return t.errorAge;
-            return "";
+            if (!formData.nom.trim()) errors.nom = t.errorEmpty;
+            else if (!nameRegex.test(formData.nom.trim())) errors.nom = t.errorName;
+            if (!formData.prenom.trim()) errors.prenom = t.errorEmpty;
+            else if (!nameRegex.test(formData.prenom.trim())) errors.prenom = t.errorName;
+            if (!formData.dateNaissance) errors.dateNaissance = t.errorEmpty;
+            else if (!isOldEnough(formData.dateNaissance)) errors.dateNaissance = t.errorAge;
+            return errors;
         }
 
         if (s === 2) {
-            if (formData.matricule.trim() === "" || formData.id_filiere === "" || formData.id_niveau === "") {
-                return t.errorEmpty;
-            }
-            if (!matriculeRegex.test(formData.matricule.trim())) return t.errorMatricule;
-            if (needsProfile && formData.profileAcademique === "") return t.errorEmpty;
-            return "";
+            if (!formData.matricule.trim()) errors.matricule = t.errorEmpty;
+            else if (!matriculeRegex.test(formData.matricule.trim())) errors.matricule = t.errorMatricule;
+            if (!formData.id_filiere) errors.id_filiere = t.errorEmpty;
+            if (!formData.id_niveau) errors.id_niveau = t.errorEmpty;
+            if (needsProfile && !formData.profileAcademique) errors.profileAcademique = t.errorEmpty;
+            return errors;
         }
 
         if (s === 3) {
-            if (formData.email.trim() === "" || formData.telephone.trim() === "" || formData.password.trim() === "") {
-                return t.errorEmpty;
-            }
-            if (!phoneRegex.test(normalizeCameroonPhone(formData.telephone))) return t.errorTelephone;
-            return "";
+            if (!formData.email.trim()) errors.email = t.errorEmpty;
+            else if (!emailRegex.test(formData.email.trim())) errors.email = t.errorEmail;
+            if (!formData.telephone.trim()) errors.telephone = t.errorEmpty;
+            else if (!phoneRegex.test(normalizeCameroonPhone(formData.telephone))) errors.telephone = t.errorTelephone;
+            if (!formData.password.trim()) errors.password = t.errorEmpty;
+            else if (!passwordRegex.test(formData.password)) errors.password = t.errorPassword;
+            return errors;
         }
 
-        return "";
+        return errors;
     };
+
+    const hasErrors = (errors) => Object.values(errors).some(Boolean);
+
+    const loadCaptcha = async () => {
+        const response = await fetch(`${API_BASE_URL}/etudiant/registration/captcha`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || t.errorRegister);
+        setCaptcha({ token: data.token, question: data.question });
+        setCaptchaAnswer("");
+    };
+
+    useEffect(() => {
+        if (verificationToken && !captcha.token) {
+            loadCaptcha().catch(() => {});
+        }
+    }, [verificationToken, captcha.token]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const stepError = getStepError(step);
-        if (stepError) {
-            setError(stepError);
+        const stepErrors = getStepErrors(step);
+        if (hasErrors(stepErrors)) {
+            setFieldErrors(stepErrors);
+            setError(t.errorEmpty);
             return;
         }
+
+        setFieldErrors({});
 
         if (step < TOTAL_STEPS) {
             setStep((s) => s + 1);
@@ -354,10 +428,10 @@ function Register() {
                 id_niveau: parseInt(formData.id_niveau),
             };
 
-            const response = await fetch(`${API_BASE_URL}/etudiant/add_student/`, {
+            const response = await fetch(`${API_BASE_URL}/etudiant/registration/start`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ etudiant: payload }),
             });
 
             const data = await response.json();
@@ -366,8 +440,9 @@ function Register() {
                 throw new Error(data.detail || data.error || t.errorRegister);
             }
 
-            setSuccess(t.successRegister);
-            setTimeout(() => navigate("/login"), 1500);
+            setVerificationToken(data.verification_token);
+            setSuccess(data.message || t.codeSent);
+            await loadCaptcha();
 
         } catch (err) {
             setError(err.message);
@@ -376,24 +451,94 @@ function Register() {
         }
     };
 
+    const handleVerifyRegistration = async (e) => {
+        e.preventDefault();
+        setError("");
+        setSuccess("");
+
+        if (!verificationCode.trim() || !captchaAnswer.trim()) {
+            setError(t.errorEmpty);
+            return;
+        }
+
+        setVerifying(true);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/etudiant/registration/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    verification_token: verificationToken,
+                    code: verificationCode.trim(),
+                    captcha: {
+                        token: captcha.token,
+                        answer: captchaAnswer.trim(),
+                    },
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || t.errorRegister);
+            }
+
+            localStorage.setItem("user", JSON.stringify(data));
+            setSuccess(t.successRegister);
+            setTimeout(() => navigate("/dashboard"), 900);
+        } catch (err) {
+            setError(err.message);
+            try {
+                await loadCaptcha();
+            } catch {
+                // Le message d'erreur principal reste celui de la verification.
+            }
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const restartRegistration = () => {
+        setStep(1);
+        setVerificationToken("");
+        setVerificationCode("");
+        setCaptcha({ token: "", question: "" });
+        setCaptchaAnswer("");
+        setSuccess("");
+        setError("");
+    };
+
     // ─── Rendu ─────────────────────────────────────────────────────
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
-            <header className="bg-blue-900 text-white px-4 py-4 shrink-0">
-                <div className="max-w-7xl mx-auto w-full flex items-center justify-between px-2 sm:px-4">
-                    <div className="flex items-center gap-2.5">
-                        <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-full bg-white/10 p-0.5 object-contain" />
+            <header className={`sticky top-0 left-0 right-0 z-50 bg-blue-900/95 backdrop-blur-md text-white`}>
+                <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
+                    <a href="/" className="flex items-center gap-2.5 shrink-0">
+                        <img src="/logo.png" alt="Logo" className="w-9 h-9 rounded-full bg-white/10 p-0.5 object-contain" />
                         <div className="leading-tight">
-                            <p className="text-xs sm:text-sm font-bold leading-none">Université d'Ebolowa</p>
-                            <p className="text-[10px] sm:text-xs text-blue-300 leading-none mt-0.5">Faculté des Sciences</p>
+                            <p className="text-sm font-bold tracking-tight leading-none">Université d'Ebolowa</p>
+                            <p className="text-[10px] text-blue-300 leading-none mt-0.5">Faculté des Sciences</p>
                         </div>
+                    </a>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={toggleLang}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-blue-200 hover:text-white hover:bg-white/10 transition-colors duration-150"
+                            aria-label="Changer de langue"
+                        >
+                            <span className="">({lang === "fr" ? "EN" : "FR"})</span>
+                            <Globe size={15} className="hidden lg:inline-block" />
+                        </button>
+                        <a href="/login" className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white border border-white/30 hover:bg-white/10 transition-colors duration-150">
+                            Se connecter
+                        </a>
                     </div>
-                    <LanguageToggle className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1.5 text-white transition hover:bg-white/20" small={false} />
                 </div>
             </header>
 
-            <main className="flex-1 flex items-center justify-center px-4 py-3 min-h-0">
-                <div className="w-full max-w-md">
+            <main className="flex-1 flex items-center justify-center px-4 py-6 min-h-0">
+                <div className="w-full max-w-xl">
                     <div className="text-center mb-3">
                         <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">{t.title}</h1>
                         <p className="text-xs text-gray-500 mt-1">{t.subtitle}</p>
@@ -411,26 +556,106 @@ function Register() {
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-3" noValidate>
+                        {verificationToken ? (
+                            <form onSubmit={handleVerifyRegistration} className="space-y-4" noValidate>
+                                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-center">
+                                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white">
+                                        <ShieldCheck size={22} />
+                                    </div>
+                                    <h2 className="text-base font-extrabold text-gray-900">{t.verifyTitle}</h2>
+                                    <p className="mt-1 text-xs leading-relaxed text-gray-600">{t.verifySubtitle}</p>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold text-gray-700">{t.code}</label>
+                                    <div className="flex items-center gap-2.5 border border-gray-200 rounded-xl px-3 bg-gray-50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all duration-150 shadow-sm">
+                                        <Mail size={15} className="text-gray-400 shrink-0" />
+                                        <input
+                                            type="text"
+                                            value={verificationCode}
+                                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                            placeholder={t.codePlaceholder}
+                                            inputMode="numeric"
+                                            autoComplete="one-time-code"
+                                            className={inputCls}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <label className="block text-xs font-semibold text-gray-700">{t.robotCheck}</label>
+                                        <button type="button" onClick={loadCaptcha} className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700">
+                                            <RefreshCw size={12} />
+                                            {t.refreshCaptcha}
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-[1fr_1.1fr] gap-2">
+                                        <div className="flex items-center justify-center rounded-xl border border-blue-100 bg-blue-50 px-3 text-sm font-extrabold text-blue-700">
+                                            {captcha.question || "..."}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={captchaAnswer}
+                                            onChange={(e) => setCaptchaAnswer(e.target.value.replace(/[^\d-]/g, "").slice(0, 4))}
+                                            placeholder={t.robotPlaceholder}
+                                            inputMode="numeric"
+                                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800 outline-none transition-all duration-150 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 pt-1">
+                                    <button type="button" onClick={restartRegistration} className="flex items-center gap-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 text-xs font-semibold transition-all duration-150 shrink-0">
+                                        <ChevronLeft size={14} />
+                                        {t.restart}
+                                    </button>
+                                    <button type="submit" disabled={verifying} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all duration-200">
+                                        {verifying ? (
+                                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" />
+                                                <path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                                            </svg>
+                                        ) : (
+                                            <ShieldCheck size={15} />
+                                        )}
+                                        {verifying ? t.verifying : t.verifySubmit}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                             {step === 1 && (
-                                <div className="space-y-3">
-                                    <Field label={t.nom} icon={<User size={15} />}>
-                                        <input type="text" name="nom" value={formData.nom} onChange={handleChange} placeholder={t.nomPlaceholder} className={inputCls} required />
-                                    </Field>
-                                    <Field label={t.prenom} icon={<User size={15} />}>
-                                        <input type="text" name="prenom" value={formData.prenom} onChange={handleChange} placeholder={t.prenomPlaceholder} className={inputCls} required />
-                                    </Field>
+                                <div className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <Field label={t.nom} icon={<User size={15} />}>
+                                                <input type="text" name="nom" value={formData.nom} onChange={handleChange} placeholder={t.nomPlaceholder} className={inputCls} required />
+                                            </Field>
+                                            <FieldError message={fieldErrors.nom} />
+                                        </div>
+                                        <div>
+                                            <Field label={t.prenom} icon={<User size={15} />}>
+                                                <input type="text" name="prenom" value={formData.prenom} onChange={handleChange} placeholder={t.prenomPlaceholder} className={inputCls} required />
+                                            </Field>
+                                            <FieldError message={fieldErrors.prenom} />
+                                        </div>
+                                    </div>
                                     <Field label={t.dateNaissance} icon={<CalendarDays size={15} />}>
                                         <input type="date" name="dateNaissance" value={formData.dateNaissance} onChange={handleChange} max={maxBirthDate} className={`${inputCls} text-gray-700`} required />
                                     </Field>
+                                    <FieldError message={fieldErrors.dateNaissance} />
                                 </div>
                             )}
 
                             {step === 2 && (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     <Field label={t.matricule} icon={<GraduationCap size={15} />}>
                                         <input type="text" name="matricule" value={formData.matricule} onChange={handleChange} placeholder={t.matriculePlaceholder} className={inputCls} required />
                                     </Field>
+                                    <FieldError message={fieldErrors.matricule} />
 
                                     <SelectField label={t.filiere} icon={<GraduationCap size={15} />} name="id_filiere" value={formData.id_filiere} onChange={handleChange}>
                                         <option value="">{t.filierePlaceholder}</option>
@@ -438,6 +663,7 @@ function Register() {
                                             <option key={f.id_filiere} value={f.id_filiere}>{f.nom}</option>
                                         ))}
                                     </SelectField>
+                                    <FieldError message={fieldErrors.id_filiere} />
 
                                     <SelectField label={t.niveau} icon={<GraduationCap size={15} />} name="id_niveau" value={formData.id_niveau} onChange={handleChange} disabled={!formData.id_filiere}>
                                         <option value="">{t.niveauPlaceholder}</option>
@@ -447,26 +673,32 @@ function Register() {
                                             </option>
                                         ))}
                                     </SelectField>
+                                    <FieldError message={fieldErrors.id_niveau} />
 
                                     {needsProfile && (
-                                        <SelectField label={t.profileAcademique} icon={<GraduationCap size={15} />} name="profileAcademique" value={formData.profileAcademique} onChange={handleChange} required>
-                                            <option value="">{t.profilePlaceholder}</option>
-                                            <option value="reprend_matiere">{t.reprendMatiere}</option>
-                                            <option value="tout_valide">{t.toutValide}</option>
-                                        </SelectField>
+                                        <>
+                                            <SelectField label={t.profileAcademique} icon={<GraduationCap size={15} />} name="profileAcademique" value={formData.profileAcademique} onChange={handleChange} required>
+                                                <option value="">{t.profilePlaceholder}</option>
+                                                <option value="reprend_matiere">{t.reprendMatiere}</option>
+                                                <option value="tout_valide">{t.toutValide}</option>
+                                            </SelectField>
+                                            <FieldError message={fieldErrors.profileAcademique} />
+                                        </>
                                     )}
                                 </div>
                             )}
 
                             {step === 3 && (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     <Field label={t.email} icon={<Mail size={15} />}>
                                         <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder={t.emailPlaceholder} autoComplete="email" className={inputCls} required />
                                     </Field>
+                                    <FieldError message={fieldErrors.email} />
 
                                     <Field label={t.telephone} icon={<Phone size={15} />}>
                                         <input type="tel" name="telephone" value={formData.telephone} onChange={handleChange} placeholder={t.telephonePlaceholder} inputMode="numeric" autoComplete="tel" className={inputCls} required />
                                     </Field>
+                                    <FieldError message={fieldErrors.telephone} />
 
                                     <div className="space-y-1">
                                         <label className="block text-xs font-semibold text-gray-700">{t.password}</label>
@@ -487,6 +719,7 @@ function Register() {
                                             </button>
                                         </div>
                                         <p className="text-[10px] text-gray-400 mt-1">{t.passwordHint}</p>
+                                        <FieldError message={fieldErrors.password} />
                                     </div>
                                 </div>
                             )}
@@ -518,6 +751,7 @@ function Register() {
                                 <StepDots current={step} total={TOTAL_STEPS} />
                             </div>
                         </form>
+                        )}
                     </div>
 
                     <div className="text-center mt-3 space-y-1">

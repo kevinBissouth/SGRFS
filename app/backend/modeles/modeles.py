@@ -42,7 +42,7 @@ class Profils_etudiants(BaseModel):
     
 class Etudiant(BaseModel):
     # id_etudiant: int
-    matricule: str = Field(min_length=9, max_length=10)
+    matricule: str = Field(min_length=9, max_length=12)
     nom: str = Field(min_length=2, max_length=20)
     prenom: str = Field(min_length=2, max_length=100)
     date_naissance : date

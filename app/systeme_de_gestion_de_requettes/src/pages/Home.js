@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import { useLanguage } from "../components/LanguageContext";
+import API_BASE_URL from "../config";
 import {
   FileText,
   Clock3,
@@ -235,6 +236,7 @@ function Home() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' or 'error'
+  const [submitError, setSubmitError] = useState("");
 
   const t = translations[lang];
 
@@ -247,19 +249,19 @@ function Home() {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setSubmitError("");
 
-    // Simuler l'envoi (remplacer par votre appel API réel)
     try {
-      // Exemple d'appel API:
-      // const response = await fetch("/api/contact", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(formData),
-      // });
-      // if (!response.ok) throw new Error("Erreur réseau");
-      
-      // Simulation temporaire
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await fetch(`${API_BASE_URL}/contact/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || t.errorMessage);
+      }
       
       setSubmitStatus("success");
       setFormData({
@@ -273,6 +275,7 @@ function Home() {
       // Effacer le message de succès après 5 secondes
       setTimeout(() => setSubmitStatus(null), 5000);
     } catch (error) {
+      setSubmitError(error.message || t.errorMessage);
       setSubmitStatus("error");
       setTimeout(() => setSubmitStatus(null), 5000);
     } finally {
@@ -288,7 +291,7 @@ function Home() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section
-        className="relative bg-cover bg-center px-4 pt-28 pb-20 sm:py-16 lg:py-18 min-h-[88svh] sm:min-h-[78svh] lg:min-h-[82vh] overflow-hidden"
+        className="relative bg-cover bg-center px-4 pt-28 pb-20 sm:py-16 lg:py-18 min-h-[88svh] sm:min-h-[78svh] lg:min-h-[calc(100svh-4rem)] overflow-hidden"
         style={{ backgroundImage: "url('/universite.jpg')" }}
       >
         {/* gradient overlay — stronger at bottom for legibility */}
@@ -691,7 +694,7 @@ function Home() {
 
               {submitStatus === "error" && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                  {t.errorMessage}
+                  {submitError || t.errorMessage}
                 </div>
               )}
 
